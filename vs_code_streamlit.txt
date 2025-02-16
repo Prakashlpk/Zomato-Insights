@@ -1,0 +1,447 @@
+import streamlit as st
+import mysql.connector
+from faker import Faker
+
+food=Faker()
+
+class zomato:
+  def __init__(self, host, user, password, port, database):
+    self.host = host
+    self.user = user
+    self.password = password
+    self.port = port
+    self.database = database
+    self.conn = None
+    self.cursor = None
+  def connect(self):
+    self.conn = mysql.connector.connect(host = self.host, user = self.user, password = self.password, port = self.port, database = self.database)
+    self.cursor = self.conn.cursor()
+    print("connection success")
+  def customers_table(self,TQ):
+    self.cursor.execute(TQ)
+    self.conn.commit()
+  def restaurants_table(self,TQ1):
+    self.cursor.execute(TQ1)
+    self.conn.commit()
+  def orders_table(self,TQ2):
+    self.cursor.execute(TQ2)
+    self.conn.commit()
+  def deliveries_table(self,TQ3):
+    self.cursor.execute(TQ3)
+    self.conn.commit()
+  def delivery_person_table(self,TQ4):  
+    self.cursor.execute(TQ4)
+    self.conn.commit()
+    print("table creation successful")
+  def insert_list_of_tuple(self, insert_query, list_tuple):
+    self.cursor.executemany(insert_query, list_tuple)
+    self.conn.commit()
+    print("insertion successful")
+  def fetch_all(self, query):
+    self.cursor.execute(query)
+    return self.cursor.fetchall()
+    self.conn.commit()
+  def update(self, query):
+    self.cursor.execute(query)
+    self.conn.commit()
+  def delete(self,query):
+    self.cursor.execute(query)
+    self.conn.commit()
+  def queries(self, query):
+    self.cursor.execute(query)
+    self.conn.commit()
+
+config = {"host":"gateway01.ap-southeast-1.prod.aws.tidbcloud.com", "user":"3843tbpvmio3tiw.root", "port":4000, "password":"BvhwR5z1itdG9CMJ", "database":"Zomato"}
+prak = zomato(**config)
+
+prak.connect()
+data = Faker(["en_IN"])
+Preferred_cuisine=['North Indian','South Indian','Chinese']
+customer_ids = prak.fetch_all("select customer_id from customer_table")
+customer_ids = [row[0] for row in customer_ids]
+restaurant_ids = [row[0] for row in prak.fetch_all("select restaurant_id from restaurants_table")]
+order_ids=[row[0] for row in prak.fetch_all("select order_id from orders_table")]
+from datetime import datetime
+random_date = data.date_between(start_date= datetime(2023,1,1), end_date=datetime(2024,12,31))
+Customer_table = []
+for i in range(1,1000):
+     Customer_table.append((data.name(),data.unique.email(),data.unique.phone_number(),data.address(),data.date(),data.boolean(),
+     data.random_element(Preferred_cuisine),data.random_int(min = 1, max = 1000),round(data.random.uniform(0, 5)),))
+Restaurants_table = []
+for i in range(1,1000):
+     Restaurants_table.append((data.name(),data.random_element(Preferred_cuisine),data.address(),data.name(),data.random_int(),
+     data.phone_number(),round(data.random.uniform(0, 5),2),data.random_int(min=1,max=500),data.boolean()))
+Status=['pending','delivered','cancelled','on the way']
+
+Payment_mode=['gpay','cash']
+Orders_table = []
+for i in range(1,1000):
+     Orders_table.append((data.random.choice(customer_ids),data.random.choice(restaurant_ids),random_date,data.date_time(),
+     data.random_element(Status),round(data.random.uniform(1,1000000),2), data.random_element(Payment_mode),
+        round(data.random.uniform(1,10000),2),round(data.random.uniform(0,5),2)))
+Vehicle=['bike','car','truck']
+Deliveries_table=[]
+for i in range(1,1000):
+  Deliveries_table.append((data.random.choice(order_ids),data.random_int(min=1,max=20),data.random_element(Status),
+  round(data.random.uniform(1,50),2),data.random_int(min=1,max=200),data.random_int(min=1,max=200),
+  round(data.random.uniform(1,1000)),data.random_element(Vehicle)))
+
+Delivery_persons_table =[]
+for i in range(1,20):
+  Delivery_persons_table.append((data.name(),data.unique.phone_number(),data.random_element(Vehicle),data.random_int(min=0,max=2000),
+  round(data.random.uniform(0, 5)),data.address())) 
+
+import pandas as pd
+
+
+def home():
+    st.title("Zomato - Food Delivery Data Insights Using Python and SQL")
+    st.write("""Welcome to the Zomato Data Management Tool, an interactive platform designed to 
+    enhance operational efficiency and customer satisfaction through data-driven insights. 
+    This tool enables seamless data entry and management for orders, customers, restaurants, and deliveries.
+    """)
+    st.image('D:/GUVI/Zomato/zomato-1200x600-1.jpg')
+
+def CRUD():                  
+    if st.button("CREATE"):
+      st.session_state.read_clicked = True  
+      st.session_state.selected_option = None
+
+    if "read_clicked" not in st.session_state:
+       st.session_state.read_clicked = False 
+    if "selected_option" not in st.session_state:
+       st.session_state.selected_option = None  
+
+    if st.session_state.read_clicked:
+       option = st.selectbox("Select", ["Select an option","Show Tables","Create Delivery_Person_Table"])
+       if option == "Select an option":
+        st.session_state.selected_option = None
+       else:
+        st.session_state.selected_option = option
+
+    if st.session_state.selected_option:
+      if st.session_state.selected_option == "Show Tables":
+        prak.cursor.execute("show tables")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Create Delivery_Person_Table":
+        prak.cursor.execute("""create table delivery_person_table (delivery_person_id int auto_increment primary key,
+        name varchar(100), contact_number varchar(100), vehicle_type varchar(100),
+        total_deliveries int,average_rating decimal(3,2), location varchar(500))""")
+        IQ4="""insert into delivery_person_table (name, contact_number,
+        vehicle_type, total_deliveries, average_rating ,location) values (%s,%s,%s,%s,%s,%s)"""
+        prak.insert_list_of_tuple(IQ4, Delivery_persons_table)
+        prak.cursor.execute("SELECT * FROM delivery_person_table")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+
+    if st.button("READ"):
+      st.session_state.read_clicked = True  
+      st.session_state.selected_option = None
+
+    if st.session_state.read_clicked:
+       option = st.selectbox("Select", ["Select an option", "Retrieve all customers", "Retrieve top 5 highest-rated restaurants",
+       "Fetching the latest 10 orders","Fetching details of a customer with customer_id","Fetching details of an order with order_id"])
+       if option == "Select an option":
+        st.session_state.selected_option = None
+       else:
+        st.session_state.selected_option = option
+
+    
+    if st.session_state.selected_option:
+      if st.session_state.selected_option == "Retrieve all customers":
+        prak.cursor.execute("SELECT * FROM customer_table")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Retrieve top 5 highest-rated restaurants":
+        prak.cursor.execute("SELECT name, rating FROM restaurants_table ORDER BY rating DESC LIMIT 5")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Fetching the latest 10 orders":
+        prak.cursor.execute("SELECT * FROM orders_table ORDER BY order_date DESC LIMIT 10")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Fetching details of a customer with customer_id":
+        prak.cursor.execute("SELECT * FROM customer_table WHERE customer_id = 10002")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Fetching details of an order with order_id":
+        prak.cursor.execute("SELECT * FROM orders_table WHERE order_id = 60026")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+
+
+    if st.button("UPDATE"):
+      st.session_state.read_clicked = True  
+      st.session_state.selected_option = None
+
+    if st.session_state.read_clicked:
+       option = st.selectbox("Select", ["Select an option", "Update Customer's Phone Number", "Update Restaurant's Active Status","Update Customer's Total Orders"])
+       if option == "Select an option":
+        st.session_state.selected_option = None
+       else:
+        st.session_state.selected_option = option
+
+    if st.session_state.selected_option:
+      if st.session_state.selected_option == "Update Customer's Phone Number":
+        prak.cursor.execute("UPDATE customer_table SET phone = '9732254777' WHERE customer_id = 10002")
+        prak.conn.commit()
+        prak.cursor.execute("SELECT * FROM customer_table WHERE customer_id = 10002")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Update Restaurant's Active Status":
+        prak.cursor.execute("UPDATE restaurants_table SET is_active = 0 WHERE restaurant_id = 1")
+        prak.conn.commit()
+        prak.cursor.execute("SELECT * FROM restaurants_table WHERE restaurant_id = 1")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Update Customer's Total Orders":
+        prak.cursor.execute("UPDATE customer_table SET total_orders = 30 WHERE customer_id = 10015")
+        prak.conn.commit()
+        prak.cursor.execute("SELECT * FROM customer_table WHERE customer_id = 10015")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+
+    if st.button("DELETE"):
+      st.session_state.read_clicked = True  
+      st.session_state.selected_option = None
+
+    if st.session_state.read_clicked:
+       option = st.selectbox("Select", ["Select an option","Delete an order by order_id", "Delete a restaurant by restaurant_name","Drop a table"])
+       if option == "Select an option":
+        st.session_state.selected_option = None
+       else:
+        st.session_state.selected_option = option
+
+    if st.session_state.selected_option:
+      if st.session_state.selected_option == "Delete an order by order_id":
+        prak.cursor.execute("DELETE FROM orders_table WHERE order_id = 60026")
+        prak.conn.commit()
+        prak.cursor.execute("SELECT * FROM orders_table WHERE order_id = 60026")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Delete a restaurant by restaurant_name":
+        prak.cursor.execute("DELETE FROM restaurants_table WHERE restaurant_name = Neel Gala")
+        prak.conn.commit()
+        prak.cursor.execute("SELECT * FROM restaurants_table WHERE restaurant_name = Neel Gala")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "Drop a table":
+        prak.cursor.execute("Drop table delivery_person_table")
+        prak.conn.commit()
+        st.write("The table is deleted")
+        prak.cursor.execute("show tables")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+
+def Queries():
+    if st.button("Queries"):
+      st.session_state.read_clicked = True  
+      st.session_state.selected_option = None
+
+    if "read_clicked" not in st.session_state:
+       st.session_state.read_clicked = False 
+    if "selected_option" not in st.session_state:
+       st.session_state.selected_option = None
+
+
+    if st.session_state.read_clicked:
+       option = st.selectbox("Select", ["Select an option","1.Get all active restaurants", "2.Fetch details of orders with 'delivered' status",
+       "3.Get all orders placed by a specific customer","4.Get all orders along with customer names","5.Retrieve the 10 most recent orders",
+       "6.Get the total number of customers","7.Retrieve the maximum order value in the orders_table",
+       "8.Count the total orders placed by each customer","9.Get restaurant names along with their respective orders",
+       "10.Get the top 5 highest spending customers","11.Calculate the difference between estimated and actual delivery time",
+       "12.Get the top 5 delivery persons with the highest number of completed deliveries",
+       "13.Identify customers who frequently give low ratings","14.Find the average order value for each restaurant","15.Identify late deliveries and their delays",
+       "16.Find the busiest delivery hours","17.Identify customers who have received late deliveries multiple times",
+       "18.Get top 5 most common delivery locations","19.Find the Restaurants with the Most Cancellations",
+       "20.Find the Top 5 Restaurants with the Best Ratings"])
+       if option == "Select an option":
+        st.session_state.selected_option = None
+       else:
+        st.session_state.selected_option = option
+
+    if st.session_state.selected_option:
+      if st.session_state.selected_option == "1.Get all active restaurants":
+        prak.cursor.execute("SELECT * FROM restaurants_table WHERE is_active = TRUE")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "2.Fetch details of orders with 'delivered' status":
+        prak.cursor.execute("SELECT * FROM orders_table WHERE status = 'delivered'")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "3.Get all orders placed by a specific customer":
+        prak.cursor.execute("SELECT * FROM orders_table WHERE customer_id = 10005")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "4.Get all orders along with customer names":
+        prak.cursor.execute("""SELECT o.order_id, c.name, o.order_date, o.status
+        FROM orders_table o
+        JOIN customer_table c ON o.customer_id = c.customer_id""")
+        results = prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df) 
+      elif st.session_state.selected_option == "5.Retrieve the 10 most recent orders":  
+        prak.cursor.execute("SELECT * FROM orders_table ORDER BY order_date DESC LIMIT 10")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "6.Get the total number of customers":  
+        prak.cursor.execute("SELECT COUNT(*) AS total_customers FROM customer_table")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "7.Retrieve the maximum order value in the orders_table":
+        prak.cursor.execute("SELECT MAX(total_amount) AS highest_order FROM orders_table")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "8.Count the total orders placed by each customer":
+        prak.cursor.execute("""SELECT customer_id, COUNT(*) AS total_orders FROM orders_table
+        GROUP BY customer_id""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "9.Get restaurant names along with their respective orders":
+        prak.cursor.execute("""SELECT r.name as restaurant_name, o.order_id, o.total_amount
+        FROM restaurants_table r JOIN orders_table o ON r.restaurant_id = o.restaurant_id""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "10.Get the top 5 highest spending customers":
+        prak.cursor.execute("""SELECT c.customer_id, c.name, SUM(o.total_amount) AS total_spent
+        FROM customer_table c
+        JOIN orders_table o ON c.customer_id = o.customer_id
+        GROUP BY c.customer_id
+        ORDER BY total_spent DESC
+        LIMIT 5""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "11.Calculate the difference between estimated and actual delivery time":
+        prak.cursor.execute("""SELECT o.order_id, d.estimated_time, d.delivery_time, (d.delivery_time - d.estimated_time) AS time_difference
+        FROM orders_table o
+        JOIN deliveries_table d ON o.order_id = d.order_id""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "12.Get the top 5 delivery persons with the highest number of completed deliveries": 
+        prak.cursor.execute("""SELECT delivery_person_id, COUNT(*) AS total_deliveries
+        FROM deliveries_table
+        WHERE delivery_status = 'delivered'
+        GROUP BY delivery_person_id
+        ORDER BY total_deliveries DESC
+        LIMIT 5""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "13.Identify customers who frequently give low ratings":
+        prak.cursor.execute("""SELECT customer_id, COUNT(*) AS low_rating_count
+        FROM orders_table
+        WHERE feedback_rating < 3
+        GROUP BY customer_id
+        HAVING COUNT(*) > 2""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option =="14.Find the average order value for each restaurant":
+        prak.cursor.execute("""SELECT r.name, AVG(o.total_amount) AS avg_order_value
+        FROM restaurants_table r
+        JOIN orders_table o ON r.restaurant_id = o.restaurant_id
+        GROUP BY r.restaurant_id""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "15.Identify late deliveries and their delays":
+        prak.cursor.execute("""SELECT d.delivery_id, o.order_id, c.name as customer_name,
+        d.estimated_time, d.delivery_time,
+        (d.delivery_time - d.estimated_time) AS delay_in_minutes
+        FROM deliveries_table d
+        JOIN orders_table o ON d.order_id = o.order_id
+        JOIN customer_table c ON o.customer_id = c.customer_id
+        WHERE d.delivery_time > d.estimated_time
+        ORDER BY delay_in_minutes DESC""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "16.Find the busiest delivery hours":
+        prak.cursor.execute("""SELECT HOUR(order_date) AS order_hour, COUNT(*) AS total_orders
+        FROM orders_table
+        WHERE status = 'delivered'
+        GROUP BY order_hour
+        ORDER BY total_orders DESC""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "17.Identify customers who have received late deliveries multiple times":
+        prak.cursor.execute("""SELECT c.customer_id, c.name, COUNT(d.delivery_id) AS late_deliveries
+        FROM customer_table c
+        JOIN orders_table o ON c.customer_id = o.customer_id
+        JOIN deliveries_table d ON o.order_id = d.order_id
+        WHERE d.delivery_time > d.estimated_time
+        GROUP BY c.customer_id
+        HAVING late_deliveries > 2
+        ORDER BY late_deliveries DESC""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "18.Get top 5 most common delivery locations":
+        prak.cursor.execute("""SELECT location, COUNT(*) AS total_deliveries
+        FROM restaurants_table r
+        JOIN orders_table o ON r.restaurant_id = o.restaurant_id
+        JOIN deliveries_table d ON o.order_id = d.order_id
+        GROUP BY location
+        ORDER BY total_deliveries DESC
+        LIMIT 5""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option == "19.Find the Restaurants with the Most Cancellations":
+        prak.cursor.execute("""SELECT r.name, COUNT(o.order_id) AS cancelled_orders 
+        FROM Orders_table o
+        JOIN Restaurants_table r ON o.restaurant_id = r.restaurant_id
+        WHERE o.status = 'cancelled'
+        GROUP BY r.restaurant_id
+        ORDER BY cancelled_orders DESC
+        LIMIT 5;""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df)
+      elif st.session_state.selected_option =="20.Find the Top 5 Restaurants with the Best Ratings":
+        prak.cursor.execute("""SELECT name, cuisine_type, rating 
+        FROM Restaurants_table
+        ORDER BY rating DESC 
+        LIMIT 5""")
+        results=prak.cursor.fetchall()
+        df = pd.DataFrame(results, columns=[i[0] for i in prak.cursor.description]) 
+        st.write(df) 
+
+page = st.sidebar.selectbox("Navigation", ["Home", "CRUD","SQL_Queries"])
+
+if page == "Home":
+    home()
+elif page == "CRUD":
+    CRUD()
+elif page =="SQL_Queries":
+    Queries()    
+
+
+      
+        
+     
