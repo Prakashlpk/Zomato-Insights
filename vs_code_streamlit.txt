@@ -100,7 +100,7 @@ def home():
     enhance operational efficiency and customer satisfaction through data-driven insights. 
     This tool enables seamless data entry and management for orders, customers, restaurants, and deliveries.
     """)
-    st.image('D:/GUVI/Zomato/zomato-1200x600-1.jpg')
+    st.image('D:/Zomato/zomato-1200x600-1.jpg')
 
 def CRUD():                  
     if st.button("CREATE"):
